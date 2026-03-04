@@ -7,15 +7,18 @@ SCRIPT_NAME="pluto_launcher.jl"
 INSTALL_PATH="$BIN_DIR/$SCRIPT_NAME"
 
 # create folders
+echo "Create folders ..." >&2
 mkdir -p "$BIN_DIR"
 mkdir -p "$APP_DIR"
 
 # copy files
+echo "Copy files ..."
 cp "pluto.svg" "$APP_DIR/pluto.svg"
 cp "$SCRIPT_NAME" "$INSTALL_PATH"
 chmod +x "$INSTALL_PATH"
 
 # create desktop file
+echo "Create Desktop entry ..."
 cat <<EOF > "$APP_DIR/pluto_launcher.desktop"
 [Desktop Entry]
 Version=1.0
@@ -44,7 +47,7 @@ if [ -n "$shell_file" ]; then
         echo "function Pluto() {" >> "$shell_file"
         echo "    julia --threads auto --startup-file=no --compile=min $INSTALL_PATH \"\$@\"" >> "$shell_file"
         echo "}" >> "$shell_file"
-        echo "Add 'Pluto' to $shell_file."
+        echo "Add 'Pluto' to $shell_file ..."
     fi
 fi
 

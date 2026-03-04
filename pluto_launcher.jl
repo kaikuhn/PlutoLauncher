@@ -1,23 +1,8 @@
 
 using Sockets
+using Pluto
+using ArgParse
 import Pkg
-
-# check, if package is installed
-"""
-    ensure_package(pkg_name::String, uuid::String)
-
-Checks if package is already installed in the specific directory
-
-# Arguments:
-- `pkg_name::String`: name of the package
-- `uuid::String`: UUID of the package
-"""
-function ensure_package(pkg_name::String, uuid::String)
-    if !haskey(Pkg.dependencies(), Base.UUID(uuid))
-        @info "Paket $pkg_name fehlt. Installiere..."
-        Pkg.add(pkg_name)
-    end
-end
 
 """
     get_config(args)
@@ -29,38 +14,36 @@ Parse default values.
 - `port`: 2nd value
 """
 function get_config(args)
-    
-    # getting ArgParse.jl
-    @info "Installing ArgParse.jl if necessary ..."
-    ensure_package("ArgParse", "c7e460c6-2fb9-53a9-8c5b-16f535851c63")
-    Base.require(Main, :ArgParse)
-    ArgParse = Main.ArgParse
 
     s = ArgParse.ArgParseSettings(description = "Pluto Desktop Launcher")
 
-    ArgParse.@add_arg_table! s begin
-        "dir"
-            help = "Directory for Notebooks"
-            arg_type = String
-            default = joinpath(homedir(), "PlutoNotebooks")
-        "--url"
-            help = "Server URL"
-            arg_type = String
-            default = "127.0.0.1"
-        "--port", "-p"
-            help = "Server Port"
-            arg_type = Int
-            default = 1234
-        "--update", "-u"
-            help = "Erzwinge ein Update der Pluto-Umgebung"
-            action = :store_true
-    end
+    ArgParse.add_arg_table!(s,
+        "dir", Dict(
+            :help => "Directory for Notebooks",
+            :arg_type => String,
+            :default => joinpath(homedir(), "PlutoNotebooks")
+        ),
+        ["--url"], Dict(
+            :help => "Server URL",
+            :arg_type => String,
+            :default => "127.0.0.1"
+        ),
+        ["--port", "-p"], Dict(
+            :help => "Server Port",
+            :arg_type => Int,
+            :default => 1234
+        ),
+        ["--update", "-u"], Dict(
+            :help => "Erzwinge ein Update der Pluto-Umgebung",
+            :action => :store_true
+        )
+    )
 
     parsed_args = ArgParse.parse_args(args, s)
 
     # Update-Logik
     if parsed_args["update"]
-        @info "Manuelles Update wird ausgeführt..."
+        @info "Executing update ..."
         Pkg.update()
     end
 
@@ -112,21 +95,31 @@ function get_browser()
 end
 
 """
+    ensure_package(pkg_name::String, uuid::String)
+
+Checks if package is already installed in the specific directory
+
+# Arguments:
+- `pkg_name::String`: name of the package
+- `uuid::String`: UUID of the package
+"""
+function ensure_package(pkg_name::String, uuid::String)
+    if !haskey(Pkg.dependencies(), Base.UUID(uuid))
+        @info "Package $pkg_name missing. Installing ..."
+        Pkg.add(pkg_name)
+    end
+    pkg_sym = Symbol(pkg_name)
+    if !isdefined(Main, pkg_sym)
+        Base.eval(Main, :(using $pkg_sym))
+    end
+end
+
+"""
     pluto(port::Integer)
 
 Starts the Pluto server if its not already running.
 """
 function pluto(args)
-
-    @info "Activating environment ..."
-    pluto_launcher_env_dir = joinpath(homedir(), ".pluto_launcher_env")
-    mkpath(pluto_launcher_env_dir)
-    Pkg.activate(pluto_launcher_env_dir)
-
-    @info "Installing Pluto.jl if necessary ..."
-    ensure_package("Pluto", "c3e58a33-4697-519d-905e-579a4ad08bb4")
-    Base.require(Main, :Pluto)
-    Pluto = Main.Pluto
     
     @info "Apply configuration ..."
     dir, url, port = get_config(args)
@@ -155,21 +148,20 @@ function pluto(args)
     if !isnothing(browser)
         run(`$browser --app=http://$url:$port`)
     else
+
         @info "No compatible browser installed! Try starting Pluto uding Blink.jl ..."
+        
         @info "Installing Blink.jl if necessary ..."
-        # install Blink.jl, if necessary
         ensure_package("Blink", "ad839575-38b3-5650-b840-f874b8c74a25")
-        Base.require(Main, :Blink)
-        Blink = Main.Blink
 
         @info "Starting Window for Pluto ..."
-        w = Blink.Window()
-        Blink.loadurl(w, "http://$url:$port")
+        w = Base.invokelatest(Main.Blink.Window)
+        Base.invokelatest(Main.Blink.loadurl, w, "http://$url:$port")
 
         # wait until window is closed
         while true
             try
-                if !Blink.active(w) break end
+                if !Base.invokelatest(Main.Blink.active, w) break end
             catch e
                 break
             end
