@@ -4,7 +4,9 @@
 BIN_DIR="$HOME/.local/bin"
 APP_DIR="$HOME/.local/share/applications"
 SCRIPT_NAME="pluto_launcher.jl"
+SHELL_WRAPPER="pluto_launcher.sh"
 INSTALL_PATH="$BIN_DIR/$SCRIPT_NAME"
+WRAPPER_PATH="$BIN_DIR/$SHELL_WRAPPER"
 
 # create folders
 echo "Create folders ..." >&2
@@ -15,7 +17,9 @@ mkdir -p "$APP_DIR"
 echo "Copy files ..."
 cp "pluto.svg" "$APP_DIR/pluto.svg"
 cp "$SCRIPT_NAME" "$INSTALL_PATH"
+cp "$SHELL_WRAPPER" "$WRAPPER_PATH"
 chmod +x "$INSTALL_PATH"
+chmod +x "$WRAPPER_PATH"
 
 # create desktop file
 echo "Create Desktop entry ..."
@@ -25,9 +29,9 @@ Version=1.0
 Type=Application
 Name=Pluto Notebooks
 Comment=Julia Pluto Launcher
-Exec=julia --threads auto --startup-file=no --compile=min $INSTALL_PATH
+Exec=$WRAPPER_PATH
 Icon=$APP_DIR/pluto.svg
-Terminal=true
+Terminal=false
 Categories=Development;Science;IDE;
 EOF
 
@@ -42,12 +46,8 @@ fi
 # add function to shell
 if [ -n "$shell_file" ]; then
     # check, if function already exists
-    if ! grep -q "function Pluto()" "$shell_file"; then
-        echo -e "\n# Pluto Launcher" >> "$shell_file"
-        echo "function Pluto() {" >> "$shell_file"
-        echo "    julia --threads auto --startup-file=no --compile=min $INSTALL_PATH \"\$@\"" >> "$shell_file"
-        echo "}" >> "$shell_file"
-        echo "Add 'Pluto' to $shell_file ..."
+    if ! grep -q "source $WRAPPER_PATH" "$shell_file"; then
+        echo -e "\n# Pluto Launcher\nsource $WRAPPER_PATH" >> "$shell_file"
     fi
 fi
 

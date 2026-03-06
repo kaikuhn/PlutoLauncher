@@ -14,7 +14,7 @@ function Pluto(){
     # prepare environment for Pluto
     julia --project="$ENV_DIR" -e '
         using Pkg;
-        pkgs = ["Pluto", "ArgParse"];
+        pkgs = ["Pluto", "ArgParse", "Blink"];
         for p in pkgs
             if !haskey(Pkg.dependencies(), p)
                 @info "Installing $p ..."

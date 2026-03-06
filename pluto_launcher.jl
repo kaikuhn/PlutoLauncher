@@ -23,6 +23,11 @@ function get_config(args)
             :arg_type => String,
             :default => joinpath(homedir(), "PlutoNotebooks")
         ),
+        "env_dir", Dict(
+            :help => "Directory for the Julia environment",
+            :arg_type => String,
+            :default => joinpath(homedir(), ".pluto_launcher_env")
+        ),
         ["--url"], Dict(
             :help => "Server URL",
             :arg_type => String,
@@ -52,6 +57,10 @@ function get_config(args)
     mkpath(dir)
     cd(dir)
 
+    # Browser profile dir
+    bp_dir = joinpath(parsed_args["env_dir"], "browser_profile")
+    mkpath(bp_dir)
+
     # URL
     url = parsed_args["url"]
 
@@ -69,7 +78,7 @@ function get_config(args)
         end
     end
 
-    return dir, url, port
+    return bp_dir, dir, url, port
 end
 
 """
@@ -78,7 +87,13 @@ end
 Returns best browser choice for Pluto.
 """
 function get_browser()
-    browsers = ["chromium", "google-chrome", "brave", "microsoft-edge", "microsoft-edge-stable"]
+    browsers = [
+        "chromium-browser", 
+        "google-chrome", 
+        "brave", 
+        "microsoft-edge", 
+        "microsoft-edge-stable"
+    ]
 
     path, browser = nothing, nothing
 
@@ -95,26 +110,6 @@ function get_browser()
 end
 
 """
-    ensure_package(pkg_name::String, uuid::String)
-
-Checks if package is already installed in the specific directory
-
-# Arguments:
-- `pkg_name::String`: name of the package
-- `uuid::String`: UUID of the package
-"""
-function ensure_package(pkg_name::String, uuid::String)
-    if !haskey(Pkg.dependencies(), Base.UUID(uuid))
-        @info "Package $pkg_name missing. Installing ..."
-        Pkg.add(pkg_name)
-    end
-    pkg_sym = Symbol(pkg_name)
-    if !isdefined(Main, pkg_sym)
-        Base.eval(Main, :(using $pkg_sym))
-    end
-end
-
-"""
     pluto(port::Integer)
 
 Starts the Pluto server if its not already running.
@@ -122,11 +117,16 @@ Starts the Pluto server if its not already running.
 function pluto(args)
     
     @info "Apply configuration ..."
-    dir, url, port = get_config(args)
+    bp_dir, dir, url, port = get_config(args)
     browser, browser_path = get_browser()
 
     @info "Starting pluto server ..."
-    pluto_server = @async Pluto.run(host=url, port=port, launch_browser=false)
+    pluto_server = @async Pluto.run(
+        host=url, 
+        port=port, 
+        launch_browser=false,
+        require_secret_for_access=false,
+        )
 
     @info "Waiting for connection ..."
     for i in 1:60
@@ -144,29 +144,13 @@ function pluto(args)
         end
     end
 
-    @info "Starting Browser ..."
     if !isnothing(browser)
-        run(`$browser --app=http://$url:$port`)
+        @info "Starting Browser $browser ..."
+        browser_url = "http://$url:$port"
+        browser_cmd = `$browser --app=$browser_url --user-data-dir=$bp_dir --no-first-run`
+        run(pipeline(browser_cmd, stdout=devnull, stderr=devnull), wait=true)
     else
-
-        @info "No compatible browser installed! Try starting Pluto uding Blink.jl ..."
-        
-        @info "Installing Blink.jl if necessary ..."
-        ensure_package("Blink", "ad839575-38b3-5650-b840-f874b8c74a25")
-
-        @info "Starting Window for Pluto ..."
-        w = Base.invokelatest(Main.Blink.Window)
-        Base.invokelatest(Main.Blink.loadurl, w, "http://$url:$port")
-
-        # wait until window is closed
-        while true
-            try
-                if !Base.invokelatest(Main.Blink.active, w) break end
-            catch e
-                break
-            end
-            sleep(1e0)
-        end
+        error("No compatible browser found!")
     end
 
     # --- Block---
