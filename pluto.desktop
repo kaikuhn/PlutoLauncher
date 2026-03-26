@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Pluto Notebooks
+Comment=Julia Pluto Launcher
+Exec=$WRAPPER_PATH
+Icon=$APP_DIR/pluto.svg
+Terminal=false
+Categories=Development;Science;IDE;
+MimeType=inode/directory;

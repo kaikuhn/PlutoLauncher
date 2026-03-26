@@ -2,12 +2,14 @@
 
 function Pluto(){
     local ENV_DIR="$HOME/.pluto_launcher_env"
+    local NOTEBOOK_DIR="$HOME/PlutoNotebooks"
     local BIN_DIR="$HOME/.local/bin"
     local SCRIPT_NAME="pluto_launcher.jl"
     local INSTALL_PATH="$BIN_DIR/$SCRIPT_NAME"
 
-    # prepare directory
+    # prepare directories
     mkdir -p "$ENV_DIR"
+    mkdir -p "$NOTEBOOK_DIR"
 
     echo "Checking environment..."
 

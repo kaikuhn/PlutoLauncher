@@ -18,13 +18,13 @@ function get_config(args)
     s = ArgParse.ArgParseSettings(description = "Pluto Desktop Launcher")
 
     ArgParse.add_arg_table!(s,
-        "dir", Dict(
+        ["--dir", "-d"], Dict(
             :help => "Directory for Notebooks",
             :arg_type => String,
             :default => joinpath(homedir(), "PlutoNotebooks")
         ),
-        "env_dir", Dict(
-            :help => "Directory for the Julia environment",
+        ["--env_dir"], Dict(
+            :help => "Directory for the Julia environment and Browser Profile",
             :arg_type => String,
             :default => joinpath(homedir(), ".pluto_launcher_env")
         ),
@@ -39,7 +39,7 @@ function get_config(args)
             :default => 1234
         ),
         ["--update", "-u"], Dict(
-            :help => "Erzwinge ein Update der Pluto-Umgebung",
+            :help => "Update the Pluto environment",
             :action => :store_true
         )
     )
@@ -52,12 +52,11 @@ function get_config(args)
         Pkg.update()
     end
 
-    # Working dir
+    # Working dir is dir
     dir = expanduser(parsed_args["dir"])
     mkpath(dir)
-    cd(dir)
 
-    # Browser profile dir
+    # Browser profile dir in env_dir
     bp_dir = joinpath(parsed_args["env_dir"], "browser_profile")
     mkpath(bp_dir)
 
@@ -106,11 +105,16 @@ function get_browser()
         end
     end
 
+    # check selection
+    if isnothing(browser)
+        error("No compatible browser found! Please install a compatible browser from th list in the documenation.")
+    end
+
     return browser, path
 end
 
 """
-    pluto(port::Integer)
+    pluto(args)
 
 Starts the Pluto server if its not already running.
 """
@@ -119,6 +123,9 @@ function pluto(args)
     @info "Apply configuration ..."
     bp_dir, dir, url, port = get_config(args)
     browser, browser_path = get_browser()
+
+    @info "Change to the working directory ..."
+    cd(dir)
 
     @info "Starting pluto server ..."
     pluto_server = @async Pluto.run(
@@ -144,14 +151,10 @@ function pluto(args)
         end
     end
 
-    if !isnothing(browser)
-        @info "Starting Browser $browser ..."
-        browser_url = "http://$url:$port"
-        browser_cmd = `$browser --app=$browser_url --user-data-dir=$bp_dir --no-first-run`
-        run(pipeline(browser_cmd, stdout=devnull, stderr=devnull), wait=true)
-    else
-        error("No compatible browser found!")
-    end
+    @info "Starting Browser $browser ..."
+    browser_url = "http://$url:$port"
+    browser_cmd = `$browser --app=$browser_url --user-data-dir=$bp_dir --no-first-run`
+    run(pipeline(browser_cmd, stdout=devnull, stderr=devnull), wait=true)
 
     # --- Block---
     
