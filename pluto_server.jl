@@ -2,11 +2,11 @@
 using Pluto
 
 """
-    pluto(args)
+    start_pluto()
 
-Starts the Pluto server if its not already running.
+Starts the Pluto server.
 """
-function pluto()
+function start_pluto()
     
     # config
     url = "127.0.0.1"
@@ -21,12 +21,11 @@ function pluto()
     Pluto.run(
         host=url, 
         port=port, 
-        launch_browser=false,
-        require_secret_for_access=false
+        launch_browser=false
         )
 
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    pluto()
+    start_pluto()
 end

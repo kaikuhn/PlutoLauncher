@@ -77,7 +77,7 @@ printf "%s\n" \
     "Exec=$BROWSER_PATH %F" \
     "Icon=$ICON_PATH" \
     "StartupWMClass=PlutoLauncher" \
-    "Terminal=true" \
+    "Terminal=false" \
     "Categories=Development;Science;IDE;" \
     "MimeType=application/x-julia;text/x-julia;inode/directory;" \
     > "$DESKTOP_PATH"
@@ -85,6 +85,7 @@ printf "%s\n" \
 # create systemd service
 echo "Create systemd service ..."
 mkdir -p "$HOME/.config/systemd/user"
+JULIA_PATH=$(which julia)
 printf "%s\n" \
     "[Unit]"\
     "Description=Pluto.jl Notebook Server"\
@@ -92,8 +93,12 @@ printf "%s\n" \
     ""\
     "[Service]"\
     "Type=simple"\
-    "ExecStart=julia --project=$ENV_DIR --threads auto --startup-file=no $SCRIPT_PATH"\
+    "ExecStart=$JULIA_PATH --project=$ENV_DIR --threads auto --startup-file=no $SCRIPT_PATH"\
+    "User=$USER"\
+    "WorkingDirectory=$HOME"\
+    "Environment=HOME=$HOME"\
     "Restart=on-failure"\
+    "RestartSec=5s"\
     ""\
     "[Install]"\
     "WantedBy=default.target"\
