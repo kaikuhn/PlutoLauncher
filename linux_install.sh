@@ -1,16 +1,5 @@
 #!/bin/bash
 
-echo "find shell configuration (bash oder zsh) ..."
-shell_file=""
-if [ -f "$HOME/.bashrc" ]; then
-    shell_file="$HOME/.bashrc"
-elif [ -f "$HOME/.zshrc" ]; then
-    shell_file="$HOME/.zshrc"
-else
-    echo "ERROR: Neither ~/.bashrc nor ~/.zshrc was found. Please check your shell configuration."
-    exit 1
-fi
-
 # Install Julia, if necessary
 if command -v julia &> /dev/null; then
     echo "Julia is already installed. OK ..."
@@ -23,20 +12,32 @@ else
     exit 0
 fi
 
+# define paths
+ENV_DIR="$HOME/.local/share/pluto_env"
+BROWSER_ENV_DIR="$HOME/.local/share/pluto_env/browser"
+BIN_DIR="$HOME/.local/bin"
+APP_DIR="$HOME/.local/share/applications"
+ICON_DIR="$HOME/.local/share/icons"
+# files
+SCRIPT="pluto_server.jl"
+BROWSER="pluto_browser.sh"
+DESKTOP="pluto.desktop"
+ICON="pluto.svg"
+SERVICE="pluto.service"
+SCRIPT_PATH="$BIN_DIR/$SCRIPT"
+BROWSER_PATH="$BIN_DIR/$BROWSER"
+DESKTOP_PATH="$APP_DIR/$DESKTOP"
+ICON_PATH="$ICON_DIR/$ICON"
+SERVICE_PATH="$HOME/.config/systemd/user/$SERVICE"
+
 # Preapare Julia environment for Pluto
-echo "Checking environment..."
-ENV_DIR="$HOME/.pluto_launcher_env"
+echo "Prepare Julia environment ..."
 mkdir -p "$ENV_DIR"
+mkdir -p "$BROWSER_ENV_DIR"
 
 julia --project="$ENV_DIR" -e '
     using Pkg;
-    pkgs = ["Pluto", "ArgParse", "Electron"];
-    for p in pkgs
-        if !haskey(Pkg.dependencies(), p)
-            @info "Installing $p ..."
-            Pkg.add(p)
-        end
-    end
+    Pkg.add("Pluto");
 '
 
 # create temporary directory
@@ -52,19 +53,6 @@ git clone --depth 1 https://github.com/kaikuhn/PlutoLauncher.git "$TEMP_DIR" || 
 # change directory
 cd $TEMP_DIR
 
-# define paths
-BIN_DIR="$HOME/.local/bin"
-APP_DIR="$HOME/.local/share/applications"
-ICON_DIR="$HOME/.local/share/icons"
-SCRIPT="pluto.jl"
-WRAPPER="pluto_wrapper.sh"
-DESKTOP="pluto.desktop"
-ICON="pluto.svg"
-SCRIPT_PATH="$BIN_DIR/$SCRIPT"
-WRAPPER_PATH="$BIN_DIR/$WRAPPER"
-DESKTOP_PATH="$APP_DIR/$DESKTOP"
-ICON_PATH="$ICON_DIR/$ICON"
-
 # create folders
 echo "Create folders ..."
 mkdir -p "$BIN_DIR"
@@ -73,19 +61,20 @@ mkdir -p "$APP_DIR"
 # copy files
 echo "Copy files ..."
 cp "$SCRIPT" "$SCRIPT_PATH"
-cp "$WRAPPER" "$WRAPPER_PATH"
+cp "$BROWSER" "$BROWSER_PATH"
 cp "$ICON" "$ICON_PATH"
 chmod +x "$SCRIPT_PATH"
-chmod +x "$WRAPPER_PATH"
+chmod +x "$BROWSER_PATH"
 
 # create desktop file
+echo "Create desktop file ..."
 printf "%s\n" \
     "[Desktop Entry]" \
     "Version=1.0" \
     "Type=Application" \
     "Name=Pluto" \
     "Comment=Julia Pluto Launcher" \
-    "Exec=$WRAPPER_PATH %F" \
+    "Exec=$BROWSER_PATH %F" \
     "Icon=$ICON_PATH" \
     "StartupWMClass=PlutoLauncher" \
     "Terminal=true" \
@@ -93,14 +82,28 @@ printf "%s\n" \
     "MimeType=application/x-julia;text/x-julia;inode/directory;" \
     > "$DESKTOP_PATH"
 
-# add function to shell
-echo "Add Pluto to shell ..."
-if [ -n "$shell_file" ]; then
-    # check, if function already exists
-    if ! grep -q "source $WRAPPER_PATH" "$shell_file"; then
-        echo -e "\n# Pluto Launcher\nsource $WRAPPER_PATH" >> "$shell_file"
-    fi
-fi
+# create systemd service
+echo "Create systemd service ..."
+mkdir -p "$HOME/.config/systemd/user"
+printf "%s\n" \
+    "[Unit]"\
+    "Description=Pluto.jl Notebook Server"\
+    "After=network.target"\
+    ""\
+    "[Service]"\
+    "Type=simple"\
+    "ExecStart=julia --project=$ENV_DIR --threads auto --startup-file=no $SCRIPT_PATH"\
+    "Restart=on-failure"\
+    ""\
+    "[Install]"\
+    "WantedBy=default.target"\
+    > "$SERVICE_PATH"
+
+# start systemd service
+echo "Start systemd service ..."
+systemctl --user daemon-reload
+systemctl --user start pluto.service
+systemctl --user enable pluto.service
 
 # clean up
 echo "Cleaning up ..."

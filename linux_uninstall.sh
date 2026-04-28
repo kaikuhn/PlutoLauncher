@@ -14,28 +14,35 @@ git clone --depth 1 https://github.com/kaikuhn/PlutoLauncher.git "$TEMP_DIR" || 
 cd $TEMP_DIR
 
 # define paths
+ENV_DIR="$HOME/.local/share/pluto_env"
+BROWSER_ENV_DIR="$HOME/.local/share/pluto_env/browser"
 BIN_DIR="$HOME/.local/bin"
 APP_DIR="$HOME/.local/share/applications"
 ICON_DIR="$HOME/.local/share/icons"
-ENV_DIR="$HOME/.pluto_launcher_env"
-NOTEBOOK_DIR="$HOME/PlutoNotebooks"
-SCRIPT="pluto.jl"
-WRAPPER="pluto_wrapper.sh"
+# files
+SCRIPT="pluto_server.jl"
+BROWSER="pluto_browser.sh"
 DESKTOP="pluto.desktop"
 ICON="pluto.svg"
+SERVICE="pluto.service"
 SCRIPT_PATH="$BIN_DIR/$SCRIPT"
-WRAPPER_PATH="$BIN_DIR/$WRAPPER"
+BROWSER_PATH="$BIN_DIR/$BROWSER"
 DESKTOP_PATH="$APP_DIR/$DESKTOP"
 ICON_PATH="$ICON_DIR/$ICON"
+SERVICE_PATH="$HOME/.config/systemd/user/$SERVICE"
+
+# stop service
+systemctl --user stop pluto.service
+systemctl --user disable pluto.service
 
 # delete files
 echo "Deleting files ..."
 rm "$SCRIPT_PATH"
-rm "$WRAPPER_PATH"
+rm "$BROWSER_PATH"
 rm "$DESKTOP_PATH"
+rm "$SERVICE_PATH"
 rm "$ICON_PATH"
 rm -r "$ENV_DIR"
-rm -r "$NOTEBOOK_DIR"
 
 # clean up
 echo "Cleaning up ..."
